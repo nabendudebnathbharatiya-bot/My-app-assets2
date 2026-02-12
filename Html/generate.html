@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Tool: Asset Manager Generator</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #4ade80; text-align: center; }
+        label { display: block; margin-top: 20px; font-weight: bold; color: #facc15; }
+        textarea { width: 100%; height: 200px; background: #222; color: #ddd; border: 1px solid #444; padding: 10px; margin-top: 5px; border-radius: 5px; font-family: monospace; }
+        button { background: #2563eb; color: white; padding: 15px; width: 100%; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px; border-radius: 8px; }
+        button:hover { background: #1d4ed8; }
+        #output-area { margin-top: 30px; display: none; border-top: 2px solid #444; padding-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>মাস্টার জেনারেটর</h1>
+    <p style="text-align:center; color:#888;">শুধু নতুন এপিসোডের ডেটা পেস্ট করুন, আর অ্যাসেট ম্যানেজার নিন।</p>
+
+    <label>১. এপিসোড ডেটা (JSON) এখানে পেস্ট করুন:</label>
+    <textarea id="json-input" placeholder="আমি আপনাকে যে ডেটা দেব, তা এখানে পেস্ট করবেন..."></textarea>
+
+    <button onclick="createAssetManager()">Asset Manager তৈরি করুন</button>
+
+    <div id="output-area">
+        <label style="color:#4ade80;">২. আপনার Asset Manager কোড রেডি:</label>
+        <textarea id="final-code" readonly></textarea>
+        <button onclick="copyCode()" style="background:#16a34a;">কপি করুন</button>
+    </div>
+</div>
+
+<script>
+    function createAssetManager() {
+        const rawData = document.getElementById('json-input').value.trim();
+        
+        if (!rawData) { alert("দয়া করে ডেটা পেস্ট করুন!"); return; }
+
+        let parsedData;
+        try {
+            parsedData = JSON.parse(rawData);
+        } catch (e) {
+            alert("ভুল ফরম্যাট! ডেটা সঠিক কিনা যাচাই করুন।");
+            return;
+        }
+
+        // The Template for Asset Manager
+        const template = `<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Asset Manager</title>
+<style>
+html, body { height: auto !important; overflow-y: scroll !important; -webkit-overflow-scrolling: touch; margin: 0; padding: 0; background-color: #e2e8f0; font-family: sans-serif; }
+.container { max-width: 800px; margin: 20px auto; padding: 20px; padding-bottom: 100px; }
+h1 { text-align: center; color: #1e293b; }
+.slide-card { background: white; padding: 20px; margin-bottom: 25px; border-radius: 12px; border-left: 6px solid #2563eb; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+label { display: block; font-weight: bold; margin-bottom: 8px; color: #444; }
+input[type="text"] { width: 100%; padding: 12px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; }
+.btn-generate { background-color: #16a34a; color: white; padding: 15px; width: 100%; border: none; border-radius: 10px; font-size: 1.2rem; font-weight: bold; cursor: pointer; position: sticky; bottom: 20px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+#output-area { display: none; margin-top: 30px; background: #1e293b; padding: 15px; border-radius: 10px; }
+textarea { width: 100%; height: 200px; background: #000; color: #0f0; padding: 10px; border-radius: 5px; }
+.copy-btn { background: #2563eb; color: white; padding: 10px; width: 100%; border: none; border-radius: 5px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Asset Manager</h1>
+<p style="text-align:center;">লিংক বসান 👇</p>
+<div id="form-area"></div>
+<button onclick="generateCode()" class="btn-generate">কোড তৈরি করুন</button>
+<div id="output-area">
+<h3 style="color:white;">ফাইনাল কোড:</h3>
+<textarea id="final-code" readonly></textarea>
+<button onclick="copyToClipboard()" class="copy-btn">কোড কপি করুন</button>
+</div>
+</div>
+<script>
+const baseData = ${rawData};
+
+// Render Form
+const formArea = document.getElementById('form-area');
+baseData.forEach((slide, i) => {
+    let html = '<div class="slide-card"><h3>' + (i+1) + '. ' + slide.title + '</h3><p>' + (slide.text ? slide.text.substring(0, 30) : '...') + '...</p><label>ছবির লিংক:</label><input type="text" id="img-' + i + '" placeholder="Image Link...">';
+    
+    if(slide.hasAudioIcon || slide.audio) {
+        html += '<label style="color:#e11d48;">অডিও/গান লিংক (Optional):</label><input type="text" id="audio-' + i + '" placeholder="MP3 Link...">';
+    }
+    if(slide.type === 'outro') {
+        html += '<label style="color:#16a34a;">পরবর্তী পর্বের লিংক:</label><input type="text" id="link-' + i + '" placeholder="Next Episode HTML...">';
+    }
+    html += '</div>';
+    formArea.innerHTML += html;
+});
+
+function generateCode() {
+    let finalSlides = [];
+    baseData.forEach((slide, i) => {
+        const img = document.getElementById('img-' + i).value.trim();
+        const audio = document.getElementById('audio-' + i) ? document.getElementById('audio-' + i).value.trim() : '';
+        const link = document.getElementById('link-' + i) ? document.getElementById('link-' + i).value.trim() : '';
+        
+        let obj = { ...slide, id: i, image: img, audio: audio, link: link };
+        finalSlides.push(obj);
+    });
+
+    const fullHTML = \`<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Episode Player</title>
+<script src="https://cdn.tailwindcss.com"><\\/script>
+<script src="https://unpkg.com/lucide@latest"><\\/script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@500;700&family=Hind+Siliguri:wght@400;600;700&display=swap');
+body { font-family: 'Hind Siliguri', sans-serif; background-color: #000; color: #fff; overflow: hidden; }
+.serif-font { font-family: 'Noto Serif Bengali', serif; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slideUp { animation: slideUp 0.6s ease-out forwards; }
+.interactive-element { pointer-events: auto !important; position: relative; z-index: 100; }
+#slide-content { pointer-events: none; }
+.text-huge { font-size: 2.5rem; line-height: 1.2; } 
+.text-big { font-size: 1.5rem; line-height: 1.6; }   
+.text-medium { font-size: 1.2rem; line-height: 1.5; } 
+.comic-bubble { position: relative; background: #292524; border: 1px solid #57534e; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-bottom: 1.2rem; }
+.comic-bubble::after { content: ''; position: absolute; bottom: -12px; left: 25px; border-width: 12px 12px 0; border-style: solid; border-color: #57534e transparent transparent transparent; }
+.comic-bubble.right::after { left: auto; right: 25px; }
+.input-area { background: rgba(255,255,255,0.1); border: 2px solid #fbbf24; color: #fbbf24; width: 100%; padding: 15px; border-radius: 12px; margin-top: 15px; font-size: 1.4rem; font-weight: bold; }
+.input-area:focus { outline: none; background: rgba(0,0,0,0.9); }
+.hidden-force { display: none !important; }
+.audio-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; color: #fca5a5; margin-bottom: 10px; }
+</style>
+</head>
+<body class="flex justify-center items-center min-h-screen bg-black">
+<audio id="bg-audio"></audio>
+<div id="app-container" class="relative w-full max-w-lg h-[100dvh] bg-neutral-900 flex flex-col shadow-2xl overflow-hidden border-x-2 border-neutral-800">
+<div id="progress-container" class="absolute top-0 left-0 w-full z-50 flex gap-1 p-2"></div>
+<div id="slide-content" class="flex-1 flex flex-col justify-center items-center p-6 relative z-50 w-full">
+<div id="inner-content" class="w-full"></div>
+</div>
+<div id="prev-zone" onclick="prevSlide()" class="absolute inset-y-0 left-0 w-1/4 z-10"></div>
+<div id="next-zone" onclick="nextSlide()" class="absolute inset-y-0 right-0 w-3/4 z-10"></div>
+</div>
+<script>
+const slides = \${JSON.stringify(finalSlides, null, 4)};
+let currentSlide = 0;
+const bgAudio = document.getElementById('bg-audio');
+function playMusic(url) { if(url) { bgAudio.src = url; bgAudio.play().catch(e => console.log("Blocked")); } else { bgAudio.pause(); } }
+function speakText(e) { if(e) e.stopPropagation(); const text = document.getElementById('user-input').value; if(text.trim()==="") { alert("লিখুন!"); return; } if('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(text); u.rate=0.5; u.pitch=0.9; u.lang='bn-IN'; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } document.getElementById('force-next-btn').classList.remove('hidden-force'); }
+function goToNextEpisode() { currentSlide++; renderSlide(currentSlide); }
+function preventNav(e) { e.stopPropagation(); }
+function renderSlide(index) {
+    const slide = slides[index];
+    const contentDiv = document.getElementById('inner-content');
+    const nextZone = document.getElementById('next-zone');
+    if(slide.type === 'interaction' || slide.type === 'outro') { nextZone.style.display = 'none'; } else { nextZone.style.display = 'block'; }
+    if(slide.type === 'outro' && slide.audio) { playMusic(slide.audio); }
+    let visualHtml = '';
+    if(slide.image) visualHtml = '<img src="' + slide.image + '" class="w-full h-56 object-cover rounded-xl mb-6 border-2 border-white/20 shadow-lg">';
+    else if(slide.icon) visualHtml = '<div class="mb-6 p-5 rounded-full bg-white/5 border border-white/20 ' + slide.theme + ' inline-block"><i data-lucide="' + slide.icon + '" width="56" height="56"></i></div>';
+    let audioHtml = slide.hasAudioIcon ? '<div class="audio-badge"><i data-lucide="volume-2" width="14"></i> সাউন্ড অ্যাক্টিভ</div>' : '';
+    let html = '';
+    // Template Logic (Simplified for Injection)
+    if(slide.type === 'intro') html = '<div class="text-center animate-slideUp">' + visualHtml + '<h1 class="text-huge font-bold mb-4 serif-font tracking-tight ' + slide.theme + '">' + slide.title + '</h1><p class="text-medium opacity-80 mb-6 uppercase tracking-widest border-b border-white/20 pb-2 inline-block">' + slide.subtitle + '</p><p class="text-big leading-relaxed serif-font">' + slide.text + '</p></div>';
+    else if(slide.type === 'dialogue') html = '<div class="w-full animate-slideUp">' + visualHtml + '<div class="comic-bubble mb-6"><p class="text-medium font-bold text-amber-500 mb-1">' + (slide.subText || '...') + '</p><p class="text-big serif-font text-white leading-relaxed">"' + slide.text + '"</p></div><div class="comic-bubble right ml-auto border-stone-500 bg-stone-800 w-[95%]"><p class="text-medium font-bold text-stone-400 mb-1 text-right">' + slide.character + '</p><p class="text-big serif-font text-stone-200 leading-relaxed text-right">"' + slide.response + '"</p></div></div>';
+    else if(slide.type === 'list') html = visualHtml + '<div class="w-full animate-slideUp"><h2 class="text-3xl font-bold mb-6 text-center ' + slide.theme + '">' + slide.title + '</h2><ul class="space-y-3">' + slide.items.map(item => '<li class="p-4 bg-white/5 rounded-xl border border-white/10 serif-font" style="font-size:1.1rem;line-height:1.6;">' + item + '</li>').join('') + '</ul></div>';
+    else if(slide.type === 'interaction') html = '<div class="w-full animate-slideUp text-center">' + audioHtml + visualHtml + '<h2 class="text-4xl font-bold mb-4 ' + slide.theme + '">' + slide.title + '</h2><p class="mb-4 opacity-90 text-lg">' + slide.text + '</p><textarea id="user-input" class="interactive-element input-area h-32 shadow-inner" placeholder="লিখুন..." onmousedown="preventNav(event)" ontouchstart="preventNav(event)" onclick="preventNav(event)"></textarea><div class="flex flex-col items-center gap-4 mt-6"><button onclick="speakText(event)" class="interactive-element px-8 py-3 bg-yellow-600 rounded-full text-white text-xl font-bold hover:scale-105 transition shadow-lg flex items-center gap-2 border border-yellow-400"><i data-lucide="volume-2" width="24"></i> শুনুন</button><button id="force-next-btn" onclick="goToNextEpisode()" class="interactive-element hidden-force px-10 py-3 bg-green-700 rounded-full text-white text-xl font-bold shadow-xl border border-green-500 flex items-center gap-2">পরবর্তী <i data-lucide="arrow-right" width="24"></i></button></div></div>';
+    else if(slide.type === 'outro') html = '<div class="text-center animate-slideUp w-full">' + visualHtml + '<h1 class="text-huge font-bold text-green-400 mb-4">' + slide.title + '</h1><p class="text-3xl italic opacity-70 mb-10">' + slide.text + '</p><a href="' + slide.link + '" target="_blank" class="interactive-element inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl text-white text-2xl font-bold shadow-2xl border border-white/30 hover:scale-105 transition">পরবর্তী পর্ব দেখুন</a></div>';
+    else html = '<div class="text-center animate-slideUp w-full">' + audioHtml + visualHtml + '<h2 class="text-3xl font-bold mb-4 ' + slide.theme + '">' + slide.title + '</h2><div class="text-left mx-auto max-w-sm"><p class="text-big serif-font whitespace-pre-line mb-4 leading-relaxed text-center">' + slide.text + '</p></div><p class="text-medium opacity-60 font-light mt-6 border-t border-white/20 pt-4">' + slide.subText + '</p></div>';
+    
+    contentDiv.innerHTML = html;
+    lucide.createIcons();
+    const barContainer = document.getElementById('progress-container');
+    barContainer.innerHTML = '';
+    slides.forEach((_, idx) => {
+        const bar = document.createElement('div');
+        let color = idx <= currentSlide ? 'bg-amber-500' : 'bg-neutral-700';
+        bar.className = 'h-1.5 flex-1 rounded-full ' + color + ' transition-all duration-300';
+        barContainer.appendChild(bar);
+    });
+}
+function nextSlide() { if(currentSlide < slides.length - 1) { if(slides[currentSlide].type !== 'interaction') { currentSlide++; renderSlide(currentSlide); } } }
+function prevSlide() { if(currentSlide > 0) { currentSlide--; renderSlide(currentSlide); } }
+renderSlide(0);
+<\\/script>
+</body>
+</html>\`;
+
+    document.getElementById('final-code').value = fullHTML;
+    document.getElementById('output-area').style.display = 'block';
+    document.getElementById('output-area').scrollIntoView({behavior: "smooth"});
+}
+
+function copyToClipboard() {
+    const copyText = document.getElementById("final-code");
+    copyText.select();
+    document.execCommand("copy");
+    alert("কপি হয়েছে!");
+}
+<\/script>
+</body>
+</html>`;
+
+        document.getElementById('final-code').value = template;
+        document.getElementById('output-area').style.display = 'block';
+    }
+
+    function copyCode() {
+        const copyText = document.getElementById("final-code");
+        copyText.select();
+        document.execCommand("copy");
+        alert("কোড কপি হয়েছে! এটি master_tool.html নামে সেভ করুন।");
+    }
+</script>
+
+</body>
+</html>

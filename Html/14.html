@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eka Engine v14: Icons + SVG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap');
+        body { font-family: 'Hind Siliguri', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+
+    <div class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-cyan-400">⚡ Eka Engine v14</h1>
+                <p class="text-xs text-slate-400">Icon Support + Toggle + SVG Ready</p>
+            </div>
+            <button onclick="loadUserJSON()" class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs px-3 py-2 rounded font-bold">
+                Test Icons
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 py-6 space-y-8">
+        
+        <section class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <h2 class="text-sm font-bold text-cyan-300 mb-2">Step 1: Paste JSON</h2>
+            <textarea id="jsonInput" class="w-full h-32 bg-slate-900 border border-slate-600 rounded p-3 text-xs font-mono outline-none focus:border-cyan-500" placeholder='Paste JSON here...'></textarea>
+            <button onclick="generateForm()" class="mt-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded w-full">
+                ⬇️ Create Editor
+            </button>
+        </section>
+
+        <div id="formContainer" class="space-y-6"></div>
+
+        <section class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-2xl">
+            <h2 class="text-sm font-bold text-green-400 mb-2">Step 2: Get Final HTML</h2>
+            <button onclick="generateFullHTML()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded w-full mb-4 shadow-lg">
+                🎮 Generate Icon-Ready HTML
+            </button>
+            <textarea id="finalOutput" class="w-full h-48 bg-black border border-slate-600 rounded p-3 text-green-400 font-mono text-xs focus:outline-none" readonly></textarea>
+            <button onclick="copyToClipboard()" class="mt-3 bg-slate-700 text-white py-2 px-4 rounded w-full text-sm">
+                📋 Copy Code
+            </button>
+        </section>
+
+    </div>
+
+    <script>
+        let slidesData = [];
+
+        function loadUserJSON() {
+            const sample = [
+                {
+                    "type": "intro",
+                    "title": "SVG ও আইকন টেস্ট",
+                    "subtitle": "v14 আপডেট",
+                    "icon": "zap", 
+                    "text": "ওপরে দেখুন একটি বিজলি (Zap) আইকন এসেছে। এবং নিচে SVG ব্যবহার করা যাবে।",
+                    "theme": "text-yellow-500"
+                },
+                {
+                    "type": "dialogue",
+                    "icon": "heart",
+                    "text": "এই স্লাইডে হার্ট আইকন ব্যবহার করা হয়েছে।",
+                    "subText": "আইকন নাম: heart",
+                    "bg_music": "https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3"
+                }
+            ];
+            document.getElementById('jsonInput').value = JSON.stringify(sample, null, 4);
+        }
+
+        // --- SMART ADAPTER ---
+        function adaptSlide(slide, index) {
+            const id = slide.id || (index + 1);
+            let mainText = slide.text || "";
+            if (slide.response) mainText = slide.response;
+
+            let secText = slide.text_secondary || "";
+            if (slide.subText) secText = slide.subText;
+
+            let style = "normal";
+            if (slide.type === 'intro' || slide.type === 'punchline') {
+                style = "title";
+                if (slide.title) mainText = slide.title;
+                if (slide.highlight) mainText = slide.highlight;
+                if (slide.subtitle) secText = slide.subtitle;
+            }
+
+            // Theme Mapping
+            let theme = slide.theme || "theme-default";
+            if (slide.theme && !slide.theme.startsWith('theme-')) {
+                 if (slide.theme.includes('amber') || slide.theme.includes('yellow')) theme = "theme-fire";
+                else if (slide.theme.includes('blue') || slide.theme.includes('cyan')) theme = "theme-ocean";
+                else if (slide.theme.includes('green')) theme = "theme-forest";
+                else if (slide.theme.includes('stone') || slide.theme.includes('gray')) theme = "theme-dark";
+                else if (slide.theme.includes('purple')) theme = "theme-space";
+            }
+
+            return {
+                id: id,
+                type: slide.type || "unknown",
+                text_style: slide.text_style || style,
+                icon: slide.icon || "", // Icon Pass-through
+                character: slide.character || "",
+                text: mainText,
+                text_secondary: secText,
+                image: slide.image || "",
+                theme: theme,
+                bg_music: slide.bg_music || "",
+                sfx: slide.sfx || "",
+                btn_text: slide.btn_text || "",
+                btn_link: slide.btn_link || ""
+            };
+        }
+
+        function generateForm() {
+            const input = document.getElementById('jsonInput').value;
+            const container = document.getElementById('formContainer');
+            try {
+                const rawData = JSON.parse(input);
+                container.innerHTML = ''; 
+                slidesData = rawData.map((s, i) => adaptSlide(s, i));
+
+                slidesData.forEach((slide, index) => {
+                    const html = `
+                        <div class="bg-slate-800 p-5 rounded-lg border-l-4 border-cyan-500 shadow-md">
+                            <h3 class="text-white font-bold text-sm mb-3">Slide ${slide.id}</h3>
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <label class="text-xs text-cyan-300">Main Text</label>
+                                            <select id="style_${index}" class="bg-slate-700 text-[10px] text-white rounded px-1 border border-slate-600">
+                                                <option value="normal" ${slide.text_style === 'normal' ? 'selected' : ''}>Normal Dialogue</option>
+                                                <option value="title" ${slide.text_style === 'title' ? 'selected' : ''}>BIG TITLE</option>
+                                                <option value="subtitle" ${slide.text_style === 'subtitle' ? 'selected' : ''}>Subtitle</option>
+                                            </select>
+                                        </div>
+                                        <textarea id="text_${index}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm h-20">${slide.text || ''}</textarea>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <label class="text-xs text-orange-300">SubText</label>
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" id="icon_${index}" value="${slide.icon || ''}" placeholder="Icon name (e.g. home)" class="w-20 bg-slate-700 text-[10px] text-white rounded px-1 border border-slate-600">
+                                                <input type="checkbox" id="icon_toggle_${index}" ${slide.icon ? 'checked' : ''} class="accent-cyan-500 h-3 w-3" title="Enable Icon">
+                                            </div>
+                                        </div>
+                                        <textarea id="text_sec_${index}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-orange-100 text-sm h-20 placeholder-gray-600">${slide.text_secondary || ''}</textarea>
+                                    </div>
+                                </div>
+                                <input type="text" id="char_${index}" value="${slide.character || ''}" placeholder="Character Name" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <input type="text" id="img_${index}" value="${slide.image || ''}" placeholder="Image/SVG/Video URL" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-yellow-200 text-sm">
+                                    <select id="theme_${index}" class="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white text-sm">
+                                        <option value="theme-default" ${slide.theme === 'theme-default' ? 'selected' : ''}>🎨 Rainbow</option>
+                                        <option value="theme-space" ${slide.theme === 'theme-space' ? 'selected' : ''}>🌌 Space</option>
+                                        <option value="theme-fire" ${slide.theme === 'theme-fire' ? 'selected' : ''}>🔥 Fire</option>
+                                        <option value="theme-ocean" ${slide.theme === 'theme-ocean' ? 'selected' : ''}>🌊 Ocean</option>
+                                        <option value="theme-dark" ${slide.theme === 'theme-dark' ? 'selected' : ''}>⚫ Dark</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="bgm_${index}" value="${slide.bg_music || ''}">
+                                <input type="hidden" id="sfx_${index}" value="${slide.sfx || ''}">
+                                <input type="hidden" id="btn_text_${index}" value="${slide.btn_text || ''}">
+                                <input type="hidden" id="btn_link_${index}" value="${slide.btn_link || ''}">
+                            </div>
+                        </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch (e) { alert("JSON Error: " + e.message); }
+        }
+
+        function generateFullHTML() {
+            const updatedSlides = slidesData.map((slide, index) => {
+                // Icon Logic: Only include icon if toggle is checked AND text is present
+                const iconName = document.getElementById(`icon_${index}`).value;
+                const iconEnabled = document.getElementById(`icon_toggle_${index}`).checked;
+                
+                return {
+                    id: slide.id,
+                    type: slide.type,
+                    text_style: document.getElementById(`style_${index}`).value,
+                    icon: iconEnabled ? iconName : "", // Handle On/Off
+                    character: document.getElementById(`char_${index}`).value,
+                    text: document.getElementById(`text_${index}`).value,
+                    text_secondary: document.getElementById(`text_sec_${index}`).value,
+                    image: document.getElementById(`img_${index}`).value,
+                    theme: document.getElementById(`theme_${index}`).value,
+                    bg_music: document.getElementById(`bgm_${index}`).value,
+                    sfx: document.getElementById(`sfx_${index}`).value,
+                    btn_text: document.getElementById(`btn_text_${index}`).value,
+                    btn_link: document.getElementById(`btn_link_${index}`).value
+                };
+            });
+
+            const jsonDataString = JSON.stringify(updatedSlides, null, 4);
+
+            const fullTemplate = `
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Story V14 (Icon)</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <script src="https://unpkg.com/lucide@latest"><\/script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap');
+        body { font-family: 'Hind Siliguri', sans-serif; background: #000; overflow: hidden; }
+        
+        .bubble {
+            background: rgba(11, 15, 25, 0.95);
+            border: 1px solid #06b6d4;
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.2);
+            border-radius: 16px;
+            transition: all 0.5s ease;
+        }
+
+        /* THEMES */
+        @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .theme-default { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradientMove 15s ease infinite; }
+        .theme-space { background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); }
+        .theme-fire { background: linear-gradient(to right, #ff416c, #ff4b2b); background-size: 200% 200%; animation: gradientMove 10s ease infinite; }
+        .theme-ocean { background: linear-gradient(to top, #1cb5e0, #000046); }
+        .theme-dark { background: #111; }
+        
+        /* TEXT STYLES */
+        .style-title { font-size: 2.8rem; line-height: 1.2; text-align: center; font-weight: 700; color: #fbbf24; text-shadow: 0 0 15px rgba(251,191,36,0.6); }
+        .style-subtitle { font-size: 1.2rem; text-align: center; color: #cbd5e1; font-style: italic; }
+        .style-normal { font-size: 1.35rem; line-height: 1.8; color: #f3f4f6; }
+        .sec-text-style { font-size: 0.9rem; color: #fde047; font-style: italic; margin-bottom: 0.5rem; display: block; border-left: 2px solid #fde047; padding-left: 8px; }
+
+    </style>
+</head>
+<body class="h-[100dvh] w-screen relative text-white overflow-hidden">
+
+    <div id="start-overlay" class="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center">
+        <h1 class="text-3xl font-bold text-cyan-400 mb-4">গল্প শুরু করুন</h1>
+        <button onclick="startGame()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-full font-bold shadow-lg animate-pulse">START</button>
+    </div>
+
+    <div id="bg-layer" class="absolute inset-0 bg-cover bg-center transition-all duration-1000"></div>
+    <video id="bg-video" class="absolute inset-0 w-full h-full object-cover hidden" loop playsinline></video>
+    <div class="absolute inset-0 bg-black/40"></div>
+
+    <div id="main-ui" class="relative z-10 h-full w-full max-w-3xl mx-auto flex flex-col p-5 pb-12 transition-all duration-500 justify-end">
+        <div id="char-name-box" class="self-start bg-cyan-600 text-white px-5 py-1 rounded-t-lg font-bold text-lg hidden translate-y-1 ml-2"></div>
+        
+        <div id="text-bubble" class="bubble p-6 w-full backdrop-blur-sm flex flex-col justify-center min-h-[150px]">
+            
+            <div id="slide-icon" class="flex justify-center mb-2 text-yellow-400 hidden"></div>
+            
+            <div id="sec-text" class="sec-text-style hidden"></div>
+            <p id="dialogue-text" class="style-normal"></p>
+
+            <div class="flex justify-between items-end mt-4 pt-2 border-t border-slate-700/50">
+                <div id="ext-btn-container"></div>
+                <button onclick="nextSlide()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-full font-bold shadow-lg ml-auto text-sm">NEXT ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bg-music" loop></audio>
+    <audio id="sfx-player"></audio>
+
+    <script>
+        const storyData = ${jsonDataString};
+        let currentIndex = 0;
+        let isTyping = false;
+        let typingTimeout;
+
+        const dom = {
+            mainUI: document.getElementById('main-ui'),
+            bubble: document.getElementById('text-bubble'),
+            iconContainer: document.getElementById('slide-icon'),
+            bg: document.getElementById('bg-layer'),
+            video: document.getElementById('bg-video'),
+            text: document.getElementById('dialogue-text'),
+            secText: document.getElementById('sec-text'),
+            charName: document.getElementById('char-name-box'),
+            extBtnContainer: document.getElementById('ext-btn-container'),
+            bgMusic: document.getElementById('bg-music'),
+            sfx: document.getElementById('sfx-player'),
+            overlay: document.getElementById('start-overlay')
+        };
+
+        function startGame() { dom.overlay.style.display = 'none'; renderSlide(0); }
+
+        function renderSlide(index) {
+            dom.video.pause();
+
+            if (index >= storyData.length) return alert("গল্প শেষ!");
+            const slide = storyData[index];
+            
+            // VISUALS
+            dom.bg.className = "absolute inset-0 bg-cover bg-center transition-all duration-1000"; 
+            dom.bg.style.backgroundImage = "";
+            dom.bg.classList.add('hidden');
+            dom.video.classList.add('hidden');
+
+            if (slide.image && slide.image.trim() !== "") {
+                const isVideo = slide.image.match(/\\.(mp4|webm)$/i);
+                if (isVideo) {
+                    dom.video.classList.remove('hidden'); dom.video.src = slide.image; dom.video.play().catch(e => {});
+                } else {
+                    dom.bg.classList.remove('hidden'); dom.bg.style.backgroundImage = "url('" + slide.image + "')";
+                }
+            } else {
+                dom.bg.classList.remove('hidden'); dom.bg.classList.add(slide.theme || 'theme-default');
+            }
+
+            // ICON LOGIC
+            if (slide.icon && slide.icon.trim() !== "") {
+                // Set the Lucide icon data attribute
+                dom.iconContainer.innerHTML = \`<i data-lucide="\${slide.icon}" class="w-10 h-10 md:w-12 md:h-12 mx-auto animate-pulse"></i>\`;
+                lucide.createIcons(); // Trigger Lucide render
+                dom.iconContainer.classList.remove('hidden');
+            } else {
+                dom.iconContainer.classList.add('hidden');
+            }
+
+            // LAYOUT
+            dom.text.className = "";
+            if (slide.text_style === 'title') {
+                dom.mainUI.classList.remove('justify-end'); dom.mainUI.classList.add('justify-center');
+                dom.text.className = "style-title";
+                dom.charName.classList.add('hidden');
+                dom.bubble.classList.add('border-yellow-500/50');
+            } else {
+                dom.mainUI.classList.remove('justify-center'); dom.mainUI.classList.add('justify-end');
+                dom.bubble.classList.remove('border-yellow-500/50');
+                if (slide.text_style === 'subtitle') {
+                    dom.text.className = "style-subtitle"; dom.charName.classList.add('hidden');
+                } else {
+                    dom.text.className = "style-normal";
+                    if (slide.character) { dom.charName.innerText = slide.character; dom.charName.classList.remove('hidden'); }
+                    else { dom.charName.classList.add('hidden'); }
+                }
+            }
+
+            // TEXT
+            if (slide.text_secondary && slide.text_secondary.trim() !== "") {
+                dom.secText.innerText = slide.text_secondary; dom.secText.classList.remove('hidden');
+            } else { dom.secText.classList.add('hidden'); }
+
+            dom.text.innerHTML = ""; clearTimeout(typingTimeout);
+            let charIndex = 0; isTyping = true;
+            function type() {
+                if (charIndex < slide.text.length) { dom.text.innerHTML += slide.text.charAt(charIndex); charIndex++; typingTimeout = setTimeout(type, 25); }
+                else { isTyping = false; }
+            }
+            type();
+
+            // AUDIO
+            if (slide.sfx) { dom.sfx.src = slide.sfx; dom.sfx.play().catch(e => {}); }
+            if (slide.bg_music && slide.bg_music.trim() !== "") {
+                const currentSrc = dom.bgMusic.getAttribute('src'); 
+                if (currentSrc !== slide.bg_music) {
+                    dom.bgMusic.src = slide.bg_music; dom.bgMusic.play().catch(e => {});
+                } else { if (dom.bgMusic.paused) dom.bgMusic.play().catch(e => {}); }
+            }
+
+            dom.extBtnContainer.innerHTML = "";
+            if (slide.btn_text && slide.btn_link) {
+                const btn = document.createElement('button');
+                btn.className = "bg-green-600 text-white px-3 py-1 rounded text-sm font-bold mr-2";
+                btn.innerText = slide.btn_text;
+                btn.onclick = () => window.location.href = slide.btn_link;
+                dom.extBtnContainer.appendChild(btn);
+            }
+        }
+
+        function nextSlide() {
+            if (isTyping) { clearTimeout(typingTimeout); dom.text.innerHTML = storyData[currentIndex].text; isTyping = false; }
+            else { currentIndex++; renderSlide(currentIndex); }
+        }
+    <\/script>
+</body>
+</html>`;
+
+            document.getElementById('finalOutput').value = fullTemplate;
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("finalOutput");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Code Copied!");
+        }
+    </script>
+</body>
+</html>

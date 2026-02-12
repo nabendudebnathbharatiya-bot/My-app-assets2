@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eka Engine: Advanced Asset Manager</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
+        h1 { color: #38bdf8; text-align: center; margin-bottom: 10px; }
+        label { display: block; margin-top: 15px; font-weight: 600; color: #94a3b8; }
+        textarea { width: 100%; height: 150px; background: #0f172a; color: #38bdf8; border: 1px solid #334155; padding: 12px; border-radius: 8px; font-family: monospace; resize: vertical; }
+        .audio-input { background: #0369a1; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 5px solid #38bdf8; }
+        input[type="text"] { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px; margin-top: 5px; box-sizing: border-box; }
+        button { background: #2563eb; color: white; padding: 15px; width: 100%; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 25px; border-radius: 8px; transition: 0.3s; }
+        button:hover { background: #1d4ed8; transform: translateY(-2px); }
+        #output-section { margin-top: 40px; display: none; }
+        .success-box { border: 2px solid #22c55e; padding: 15px; border-radius: 10px; background: rgba(34, 197, 94, 0.1); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>Master Generator Tool v2.0</h1>
+        <p style="text-align:center; color:#94a3b8;">এপিসোড ডেটা পেস্ট করুন এবং ব্যাকগ্রাউন্ড মিউজিক সেট করুন।</p>
+
+        <label>১. এপিসোড JSON ডেটা এখানে দিন:</label>
+        <textarea id="json-input" placeholder="আপনার ২০টি স্লাইডের JSON এখানে পেস্ট করুন..."></textarea>
+
+        <div class="audio-input">
+            <label style="color:white; margin-top:0;">২. ব্যাকগ্রাউন্ড মিউজিক লিঙ্ক (MP3 Link):</label>
+            <input type="text" id="bgm-link" placeholder="https://example.com/music.mp3 (ঐচ্ছিক)">
+            <p style="font-size: 0.8rem; color: #bae6fd; margin-top: 5px;">* এটি পুরো প্রেজেন্টেশন জুড়ে লুপে বাজবে।</p>
+        </div>
+
+        <button onclick="processData()">Asset Manager তৈরি করুন</button>
+    </div>
+
+    <div id="output-section">
+        <div class="card success-box">
+            <label style="color:#22c55e; margin-top:0;">৩. আপনার ফাইনাল কোড রেডি:</label>
+            <textarea id="final-code" readonly style="height: 300px; color: #22c55e;"></textarea>
+            <button onclick="copyCode()" style="background:#16a34a;">কোড কপি করুন</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function processData() {
+        const rawJson = document.getElementById('json-input').value.trim();
+        const bgm = document.getElementById('bgm-link').value.trim();
+
+        if (!rawJson) { alert("দয়া করে JSON ডেটা দিন!"); return; }
+
+        let parsedData;
+        try {
+            parsedData = JSON.parse(rawJson);
+        } catch (e) {
+            alert("JSON ফরম্যাট সঠিক নয়! আবার চেক করুন।");
+            return;
+        }
+
+        // ইনজেকশন লজিক: প্রথম স্লাইডে BGM এবং সব স্লাইডে undefined সুরক্ষা
+        const processedData = parsedData.map((slide, index) => {
+            return {
+                ...slide,
+                bgm: (index === 0 && bgm) ? bgm : (slide.bgm || ""),
+                subText: slide.subText || "", // undefined সুরক্ষা
+                image: slide.image || "",
+                theme: slide.theme || "text-white"
+            };
+        });
+
+        const finalOutput = generateTemplate(processedData);
+        document.getElementById('final-code').value = finalOutput;
+        document.getElementById('output-section').style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    function generateTemplate(data) {
+        // এই টেমপ্লেটটি আপনার 'Eka' ইঞ্জিনের আপডেট ভার্সন
+        return `<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Presentation</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+        .slide-in { animation: fadeInUp 0.5s ease-out forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-choice { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: 0.3s; }
+        .btn-choice:hover { background: #2563eb; transform: scale(1.02); }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+    <audio id="bg-music" loop></audio>
+    <div id="player" class="relative w-full max-w-lg h-[90dvh] bg-neutral-900 shadow-2xl overflow-hidden rounded-xl border border-white/10 p-6 flex flex-col">
+        <div id="progress" class="flex gap-1 mb-6"></div>
+        <div id="content" class="flex-1 flex flex-col justify-center text-center slide-in"></div>
+        <div class="flex justify-between mt-4">
+            <button onclick="prev()" class="px-4 py-2 text-sm opacity-50 hover:opacity-100">আগের</button>
+            <button id="next-btn" onclick="next()" class="px-6 py-2 bg-blue-600 rounded-full font-bold">পরবর্তী</button>
+        </div>
+    </div>
+
+    <script>
+        const slides = ${JSON.stringify(data)};
+        let currentIdx = 0;
+        const bgAudio = document.getElementById('bg-music');
+
+        function render() {
+            const slide = slides[currentIdx];
+            const content = document.getElementById('content');
+            const nextBtn = document.getElementById('next-btn');
+            
+            // BGM Logic
+            if(currentIdx === 0 && slide.bgm) {
+                bgAudio.src = slide.bgm;
+                bgAudio.play().catch(e => console.log("User interaction needed"));
+            }
+
+            let html = '<div class="slide-in">';
+            if(slide.image) html += '<img src="'+slide.image+'" class="w-full h-48 object-cover rounded-lg mb-4 shadow-lg">';
+            html += '<h1 class="text-3xl font-bold mb-4 '+slide.theme+'">'+slide.title+'</h1>';
+            html += '<p class="text-lg opacity-90">'+slide.text+'</p>';
+            
+            if(slide.subText) html += '<p class="mt-4 text-sm text-gray-400 italic">"'+slide.subText+'"</p>';
+            
+            if(slide.type === 'list' && slide.items) {
+                html += '<ul class="mt-4 text-left space-y-2">' + slide.items.map(i => '<li class="bg-white/5 p-2 rounded">✓ '+i+'</li>').join('') + '</ul>';
+            }
+
+            if(slide.options) {
+                nextBtn.style.display = 'none';
+                html += '<div class="mt-6 space-y-2">' + slide.options.map((opt, i) => 
+                    '<button onclick="checkAnswer('+i+','+slide.correct+')" class="w-full p-3 btn-choice rounded-lg text-left">'+opt+'</button>'
+                ).join('') + '</div>';
+            } else {
+                nextBtn.style.display = 'block';
+            }
+
+            html += '</div>';
+            content.innerHTML = html;
+            updateBars();
+        }
+
+        function checkAnswer(sel, cor) {
+            if(sel === cor) { next(); } else { alert("ভুল উত্তর, আবার চেষ্টা করুন!"); }
+        }
+
+        function updateBars() {
+            const container = document.getElementById('progress');
+            container.innerHTML = slides.map((_, i) => 
+                '<div class="h-1.5 flex-1 rounded-full '+(i <= currentIdx ? 'bg-blue-500' : 'bg-gray-700')+'"></div>'
+            ).join('');
+        }
+
+        function next() { if(currentIdx < slides.length - 1) { currentIdx++; render(); } }
+        function prev() { if(currentIdx > 0) { currentIdx--; render(); } }
+
+        render();
+    <\/script>
+</body>
+</html>`;
+    }
+
+    function copyCode() {
+        const copyText = document.getElementById("final-code");
+        copyText.select();
+        document.execCommand("copy");
+        alert("কোড কপি হয়েছে! এটি 'presentation.html' নামে সেভ করুন।");
+    }
+</script>
+
+</body>
+</html>
