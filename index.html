@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Asset Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
+        
+        /* ফোল্ডার এনিমেশন */
+        .folder-card { transition: all 0.2s; border-bottom: 3px solid #cbd5e1; }
+        .folder-card:active { transform: scale(0.96); border-bottom: 0px solid transparent; transform: translateY(3px); }
+        
+        /* ব্রেডক্রাম্ব ডিজাইন */
+        .breadcrumb-item:hover { text-decoration: underline; color: #2563eb; }
+        .breadcrumb-separator { color: #94a3b8; font-size: 10px; margin: 0 5px; }
+        
+        /* স্ক্রলবার */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-white border-b shadow-sm z-50 flex-none">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="p-3 flex justify-between items-center bg-slate-800 text-white">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-network-wired text-blue-400"></i>
+                    <h1 class="font-bold text-sm md:text-base">Asset Explorer <span class="text-[10px] text-gray-400 font-normal ml-1">Infinite Depth</span></h1>
+                </div>
+                <a href="index.html" class="text-xs bg-slate-700 px-3 py-1 rounded hover:bg-slate-600 border border-slate-600">Dashboard</a>
+            </div>
+
+            <div id="configPanel" class="p-3 bg-gray-50 border-b flex gap-2">
+                <input type="text" id="username" placeholder="GitHub Username" class="flex-1 p-2 text-xs border rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                <input type="text" id="repo" placeholder="Repo Name" class="flex-1 p-2 text-xs border rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                <button onclick="initLoad()" class="bg-blue-600 text-white px-4 py-1 text-xs font-bold rounded hover:bg-blue-700">
+                    GO
+                </button>
+            </div>
+
+            <div class="px-4 py-3 bg-white flex items-center gap-2 overflow-x-auto whitespace-nowrap border-b shadow-sm h-[50px]">
+                <button onclick="navigateUp()" id="btnBack" class="text-gray-500 hover:text-gray-800 mr-2 disabled:opacity-30" disabled title="Go Parent">
+                    <i class="fa-solid fa-arrow-up text-lg"></i>
+                </button>
+                
+                <div id="breadcrumbContainer" class="flex items-center text-sm font-medium text-gray-600">
+                    <span class="text-gray-400">Please load a repository...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 bg-slate-50 relative">
+        <div class="max-w-7xl mx-auto">
+            
+            <div id="loading" class="hidden absolute inset-0 bg-slate-50/80 z-40 flex flex-col items-center justify-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 mb-3"></i>
+                <p class="text-xs text-gray-500 font-bold animate-pulse">Scanning Folder...</p>
+            </div>
+
+            <div id="errorMsg" class="hidden p-4 bg-red-100 text-red-700 rounded-lg text-center text-sm font-bold mb-4"></div>
+
+            <div id="fileGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 pb-20">
+                </div>
+             
+            <div id="emptyState" class="hidden flex-col items-center justify-center mt-20 text-gray-400">
+                <i class="fa-regular fa-folder-open text-5xl mb-3"></i>
+                <p class="text-sm">Empty Folder</p>
+            </div>
+        </div>
+    </main>
+
+    <div class="bg-white border-t p-2 text-center text-[10px] text-gray-400">
+        Showing contents from GitHub API
+    </div>
+
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full shadow-xl text-xs font-bold transition-all opacity-0 translate-y-[-10px] pointer-events-none z-[60]">
+        <i class="fa-solid fa-link text-green-400 mr-1"></i> Link Copied!
+    </div>
+
+    <script>
+        let currentUser = '';
+        let currentRepo = '';
+        let currentPath = ''; // Tracks deep nesting
+
+        // Load Saved Credentials
+        window.onload = () => {
+            if(localStorage.getItem('gh_user')) document.getElementById('username').value = localStorage.getItem('gh_user');
+            if(localStorage.getItem('gh_repo')) document.getElementById('repo').value = localStorage.getItem('gh_repo');
+        };
+
+        function initLoad() {
+            currentUser = document.getElementById('username').value.trim();
+            currentRepo = document.getElementById('repo').value.trim();
+
+            if(!currentUser || !currentRepo) return alert("User and Repo required!");
+
+            localStorage.setItem('gh_user', currentUser);
+            localStorage.setItem('gh_repo', currentRepo);
+
+            // Start at root
+            loadPath('');
+        }
+
+        async function loadPath(path) {
+            currentPath = path;
+            renderBreadcrumbs(path);
+            
+            const grid = document.getElementById('fileGrid');
+            const loading = document.getElementById('loading');
+            const errorMsg = document.getElementById('errorMsg');
+            const emptyState = document.getElementById('emptyState');
+            const btnBack = document.getElementById('btnBack');
+
+            // UI Reset
+            grid.innerHTML = '';
+            loading.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            
+            // Enable/Disable Back Button
+            btnBack.disabled = (path === '');
+
+            try {
+                const apiUrl = `https://api.github.com/repos/${currentUser}/${currentRepo}/contents/${path}`;
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) throw new Error(response.status === 404 ? "Folder not found" : "GitHub API Error");
+
+                let data = await response.json();
+                loading.classList.add('hidden');
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                // SORT: Folders first, then Files
+                data.sort((a, b) => {
+                    if (a.type === b.type) return a.name.localeCompare(b.name);
+                    return a.type === 'dir' ? -1 : 1;
+                });
+
+                data.forEach(item => {
+                    if (item.type === 'dir') {
+                        // --- RENDER FOLDER ---
+                        const folderDiv = document.createElement('div');
+                        folderDiv.className = "folder-card bg-yellow-50 border border-yellow-200 p-4 rounded-xl cursor-pointer hover:bg-yellow-100 flex flex-col items-center justify-center gap-2 group";
+                        folderDiv.onclick = () => loadPath(item.path); // Recursive Call!
+                        
+                        folderDiv.innerHTML = `
+                            <i class="fa-solid fa-folder text-4xl text-yellow-400 group-hover:text-yellow-500 transition-colors"></i>
+                            <span class="text-xs font-bold text-gray-700 text-center leading-tight break-all line-clamp-2">${item.name}</span>
+                        `;
+                        grid.appendChild(folderDiv);
+                    } else {
+                        // --- RENDER FILE ---
+                        const pageUrl = `https://${currentUser}.github.io/${currentRepo}/${item.path}`;
+                        const ext = item.name.split('.').pop().toLowerCase();
+                        let icon = 'fa-file';
+                        let color = 'text-gray-400';
+                        let preview = '';
+
+                        // Preview Logic
+                        if(['jpg','png','jpeg','gif','webp'].includes(ext)) {
+                            preview = `<img src="${item.download_url}" class="h-16 w-full object-cover rounded" loading="lazy">`;
+                        } else if(['mp3','wav'].includes(ext)) {
+                            preview = `<div class="h-16 flex items-center justify-center bg-pink-50 rounded text-pink-400"><i class="fa-solid fa-music text-2xl"></i></div>`;
+                        } else if(['mp4','webm'].includes(ext)) {
+                            preview = `<div class="h-16 flex items-center justify-center bg-purple-50 rounded text-purple-400"><i class="fa-solid fa-video text-2xl"></i></div>`;
+                        } else if(['pdf'].includes(ext)) {
+                            preview = `<div class="h-16 flex items-center justify-center bg-red-50 rounded text-red-400"><i class="fa-solid fa-file-pdf text-2xl"></i></div>`;
+                        } else {
+                            preview = `<div class="h-16 flex items-center justify-center bg-gray-100 rounded text-gray-400"><i class="fa-solid fa-file-code text-2xl"></i></div>`;
+                        }
+
+                        const fileDiv = document.createElement('div');
+                        fileDiv.className = "bg-white border border-gray-200 p-2 rounded-xl flex flex-col gap-2 hover:shadow-md transition-shadow relative";
+                        fileDiv.innerHTML = `
+                            ${preview}
+                            <div class="px-1">
+                                <p class="text-[11px] font-bold text-gray-700 truncate" title="${item.name}">${item.name}</p>
+                                <p class="text-[9px] text-gray-400 uppercase">${ext}</p>
+                            </div>
+                            <button onclick="copyLink('${pageUrl}')" class="mt-auto bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-600 py-1.5 rounded text-[10px] font-bold transition-colors flex items-center justify-center gap-1">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                        `;
+                        grid.appendChild(fileDiv);
+                    }
+                });
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                errorMsg.innerText = err.message;
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        // --- BREADCRUMB LOGIC (The unlimited navigation part) ---
+        function renderBreadcrumbs(path) {
+            const container = document.getElementById('breadcrumbContainer');
+            container.innerHTML = '';
+
+            // Root Item
+            const home = document.createElement('span');
+            home.innerHTML = `<i class="fa-solid fa-house text-blue-500"></i> Root`;
+            home.className = "cursor-pointer hover:text-blue-600 px-1";
+            home.onclick = () => loadPath('');
+            container.appendChild(home);
+
+            if (!path) return;
+
+            // Split path into parts: "audio/music/pop" -> ["audio", "music", "pop"]
+            const parts = path.split('/');
+            let accumulatedPath = '';
+
+            parts.forEach((part, index) => {
+                // Separator
+                const sep = document.createElement('span');
+                sep.className = "breadcrumb-separator";
+                sep.innerHTML = '<i class="fa-solid fa-chevron-right text-[10px]"></i>';
+                container.appendChild(sep);
+
+                // Build path for this segment
+                accumulatedPath += (index > 0 ? '/' : '') + part;
+                const clickPath = accumulatedPath; // Closure capture
+
+                // Part Item
+                const span = document.createElement('span');
+                span.innerText = part;
+                
+                // If it's the last item, make it bold and non-clickable
+                if (index === parts.length - 1) {
+                    span.className = "font-bold text-gray-800 px-1";
+                } else {
+                    span.className = "cursor-pointer breadcrumb-item px-1";
+                    span.onclick = () => loadPath(clickPath);
+                }
+                
+                container.appendChild(span);
+            });
+            
+            // Auto scroll to right end of breadcrumb
+            setTimeout(() => container.scrollLeft = container.scrollWidth, 100);
+        }
+
+        function navigateUp() {
+            if (!currentPath) return;
+            const parts = currentPath.split('/');
+            parts.pop(); // Remove last folder
+            loadPath(parts.join('/'));
+        }
+
+        function copyLink(url) {
+            navigator.clipboard.writeText(url);
+            const t = document.getElementById('toast');
+            t.classList.remove('opacity-0', 'translate-y-[-10px]');
+            setTimeout(() => t.classList.add('opacity-0', 'translate-y-[-10px]'), 2000);
+        }
+    </script>
+</body>
+</html>
