@@ -1,1 +1,78 @@
+name: Extreme Compress Assets (PNG Output)
 
+on:
+  push:
+    paths:
+      - 'assets/raw/**' 
+
+jobs:
+  compress_and_replace:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install FFmpeg & PNGQuant
+        # pngquant হলো PNG এর সাইজ জোর করে কমানোর টুল
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg pngquant
+
+      - name: Extreme Compress Files and Mirror Folder Structure
+        run: |
+          # ১. ইমেজ এক্সট্রিম কম্প্রেশন (সব PNG হবে)
+          find assets/raw -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 | while IFS= read -r -d '' file; do
+            rel_path="${file#assets/raw/}"
+            dir_path=$(dirname "$rel_path")
+            filename=$(basename -- "$file")
+            name="${filename%.*}"
+            
+            mkdir -p "assets/optimized/$dir_path"
+            
+            # প্রথমে যেকোনো ছবিকে টেম্পোরারি PNG তে রূপান্তর করা
+            ffmpeg -y -i "$file" -vframes 1 "/tmp/${name}_temp.png"
+            
+            # এরপর pngquant দিয়ে কালার কোয়ালিটি ২০-৫০% এ নামিয়ে ১০ গুণ সাইজ কমানোর চেষ্টা করা
+            pngquant --quality=20-50 --force "/tmp/${name}_temp.png" -o "assets/optimized/$dir_path/${name}.png" || cp "/tmp/${name}_temp.png" "assets/optimized/$dir_path/${name}.png"
+            
+            rm "$file"
+          done
+
+          # ২. ভিডিও এক্সট্রিম কম্প্রেশন (১০ গুণ ছোট করার জন্য)
+          find assets/raw -type f \( -iname "*.mp4" -o -iname "*.mov" -o -iname "*.avi" \) -print0 | while IFS= read -r -d '' file; do
+            rel_path="${file#assets/raw/}"
+            dir_path=$(dirname "$rel_path")
+            filename=$(basename -- "$file")
+            name="${filename%.*}"
+            
+            mkdir -p "assets/optimized/$dir_path"
+            # ভিডিওর রেজোলিউশন সর্বোচ্চ 720p তে নামিয়ে আনা এবং CRF 38 (খুব বেশি কম্প্রেশন) ব্যবহার করা
+            ffmpeg -y -i "$file" -vcodec libx264 -crf 38 -preset fast -vf "scale=-2:720" -acodec aac -b:a 64k "assets/optimized/$dir_path/${name}_min.mp4"
+            rm "$file"
+          done
+
+          # ৩. অডিও এক্সট্রিম কম্প্রেশন (১০ গুণ ছোট করার জন্য)
+          find assets/raw -type f \( -iname "*.mp3" -o -iname "*.wav" \) -print0 | while IFS= read -r -d '' file; do
+            rel_path="${file#assets/raw/}"
+            dir_path=$(dirname "$rel_path")
+            filename=$(basename -- "$file")
+            name="${filename%.*}"
+            
+            mkdir -p "assets/optimized/$dir_path"
+            # অডিওর বিটরেট 32kbps এ নামানো এবং সিঙ্গেল চ্যানেল (Mono) করা
+            ffmpeg -y -i "$file" -b:a 32k -ac 1 "assets/optimized/$dir_path/${name}_min.mp3"
+            rm "$file"
+          done
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/
+          git commit -m "Extreme compressed assets (All images to PNG) [skip ci]" || echo "No changes to commit"
+          git push
